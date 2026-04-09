@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Drytech Processes — Executive Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; margin: 0; }
+
+/* KPI Cards */
+.kpi-card { transition: transform .2s ease, box-shadow .2s ease; }
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.10); }
+
+/* Period toggle */
+.period-btn { transition: all .15s ease; cursor: pointer; }
+.period-btn.active { background: #fff; color: #0f766e; font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+
+/* Animated bars */
+@keyframes grow-bar { from { width: 0; } to { width: var(--w); } }
+.bar-fill { animation: grow-bar 1.2s cubic-bezier(.4,0,.2,1) forwards; }
+
+/* Status badges */
+.badge-delivered  { background:#dcfce7; color:#16a34a; }
+.badge-transit    { background:#dbeafe; color:#1d4ed8; }
+.badge-processing { background:#fef3c7; color:#d97706; }
+.badge-cancelled  { background:#fee2e2; color:#dc2626; }
+
+/* Pulse dot */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.pulse { animation: pulse 2s infinite; }
+
+/* Counter animation */
+@keyframes count-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.count-in { animation: count-in .5s ease forwards; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:#f1f5f9; }
+::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+
+/* Table row hover */
+.trow:hover { background: #f8fafc; }
+
+.chart-container { position: relative; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-50" style="box-shadow:0 1px 8px rgba(0,0,0,.06)">
+  <div class="max-w-screen-2xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <!-- Logo mark -->
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#0f766e,#0d9488)">
+        <svg viewBox="0 0 24 24" fill="none" class="w-5 h-5" stroke="white" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-slate-800 leading-tight">Drytech Processes (India) Pvt. Ltd.</div>
+        <div class="text-xs text-slate-400 leading-tight">Executive Overview Dashboard · FY 2024–25</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="hidden sm:flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium rounded-full px-3 py-1">
+        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full pulse inline-block"></span>
+        Live Data
+      </div>
+      <div class="text-xs text-slate-400 hidden md:block">08 Apr 2025, 09:30 IST</div>
+      <div class="text-xs font-semibold bg-teal-700 text-white rounded-full px-3 py-1">FY 25</div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════ -->
+<main class="max-w-screen-2xl mx-auto px-4 md:px-6 py-5 space-y-5">
+
+  <!-- ── ROW 1: KPI Cards ── -->
+  <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+
+    <div class="kpi-card bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Total Revenue YTD</span>
+        <div class="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center text-teal-700 font-bold text-sm">₹</div>
+      </div>
+      <div class="flex items-end gap-1">
+        <span class="text-xs text-slate-400 mb-1.5">₹</span>
+        <span id="kpi-revenue" class="text-3xl font-extrabold text-slate-800 leading-none count-in">0</span>
+        <span class="text-sm font-medium text-slate-400 mb-1.5 ml-0.5">Cr</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">▲ 14.2%</span>
+        <span class="text-xs text-slate-400">vs FY24</span>
+      </div>
+    </div>
+
+    <div class="kpi-card bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Export Share</span>
+        <div class="w-9 h-9 rounded-lg bg-lime-50 flex items-center justify-center text-lime-700 text-lg">✈</div>
+      </div>
+      <div class="flex items-end gap-1">
+        <span id="kpi-export" class="text-3xl font-extrabold text-slate-800 leading-none count-in">0</span>
+        <span class="text-sm font-medium text-slate-400 mb-1.5">%</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">▲ 8.6%</span>
+        <span class="text-xs text-slate-400">vs FY24</span>
+      </div>
+    </div>
+
+    <div class="kpi-card bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Active B2B Clients</span>
+        <div class="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 text-lg">🏭</div>
+      </div>
+      <div class="flex items-end gap-1">
+        <span id="kpi-clients" class="text-3xl font-extrabold text-slate-800 leading-none count-in">0</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">▲ 11.3%</span>
+        <span class="text-xs text-slate-400">vs FY24</span>
+      </div>
+    </div>
+
+    <div class="kpi-card bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Fulfillment Rate</span>
+        <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg">✓</div>
+      </div>
+      <div class="flex items-end gap-1">
+        <span id="kpi-fulfillment" class="text-3xl font-extrabold text-slate-800 leading-none count-in">0</span>
+        <span class="text-sm font-medium text-slate-400 mb-1.5">%</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">▲ 1.2%</span>
+        <span class="text-xs text-slate-400">vs FY24</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── ROW 2: Revenue Trend + Industry Segment ── -->
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+    <!-- Revenue Trend -->
+    <div class="lg:col-span-3 bg-white rounded-xl border border-slate-200 p-5" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Revenue Trend</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Domestic vs. Export (₹ Crore)</p>
+        </div>
+        <div class="flex bg-slate-100 rounded-lg p-0.5 gap-0.5 self-start sm:self-auto">
+          <button class="period-btn active text-xs px-3 py-1.5 rounded-md text-slate-500" data-period="monthly">Monthly</button>
+          <button class="period-btn text-xs px-3 py-1.5 rounded-md text-slate-500" data-period="quarterly">Quarterly</button>
+          <button class="period-btn text-xs px-3 py-1.5 rounded-md text-slate-500" data-period="yearly">Yearly</button>
+        </div>
+      </div>
+      <div class="chart-container" style="height:230px">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Industry Segment Donut -->
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Revenue by Industry</h2>
+        <p class="text-xs text-slate-400 mt-0.5">FY 2024–25 segment split</p>
+      </div>
+      <div class="chart-container" style="height:170px">
+        <canvas id="segmentChart"></canvas>
+      </div>
+      <div id="segment-legend" class="space-y-1.5 mt-3"></div>
+    </div>
+
+  </div>
+
+  <!-- ── ROW 3: Top Products + Supply Chain ── -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <!-- Top Products -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Top Products by Revenue</h2>
+        <p class="text-xs text-slate-400 mt-0.5">FY 2024–25 · ₹ Crore</p>
+      </div>
+      <div class="chart-container" style="height:230px">
+        <canvas id="productsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Supply Chain -->
+    <div class="bg-white rounded-xl border border-slate-200 p-5" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Supply Chain Performance</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Production & Inventory (MT) · Monthly</p>
+      </div>
+      <div class="chart-container" style="height:155px">
+        <canvas id="supplyChart"></canvas>
+      </div>
+      <div class="mt-4 grid grid-cols-2 gap-x-5 gap-y-3">
+        <div id="metric-bars"></div>
+        <div id="metric-bars-2"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── ROW 4: Recent Orders + Ops Health ── -->
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+    <!-- Recent Orders -->
+    <div class="lg:col-span-3 bg-white rounded-xl border border-slate-200 overflow-hidden" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800">Recent Orders</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Last 8 dispatches</p>
+        </div>
+        <button class="text-xs text-teal-700 font-semibold hover:underline">View all →</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-100">
+              <th class="text-left px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Order ID</th>
+              <th class="text-left px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Client</th>
+              <th class="text-left px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap hidden md:table-cell">Product</th>
+              <th class="text-right px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Value</th>
+              <th class="text-center px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody" class="divide-y divide-slate-50"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Operational Health -->
+    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5" style="box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div class="mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Operational Health</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Mar 2025 snapshot</p>
+      </div>
+      <div class="chart-container" style="height:170px">
+        <canvas id="radarChart"></canvas>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mt-4" id="ops-grid"></div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="text-center py-3">
+    <p class="text-xs text-slate-400">Drytech Processes (India) Pvt. Ltd. · Executive Dashboard · FY 2024–25 · Prototype with representative mock data</p>
+  </div>
+
+</main>
+
+<script>
+// ══════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════
+const DATA = {
+  monthly: {
+    labels: ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+    domestic: [8.2, 9.1, 8.7, 10.3, 11.2, 10.8, 12.5, 13.1, 14.2, 11.6, 12.9, 14.8],
+    export:   [5.1, 5.8, 6.2,  6.9,  7.4,  7.1,  8.3,  9.0,  9.8,  8.2,  8.9, 10.4]
+  },
+  quarterly: {
+    labels: ['Q1 FY25','Q2 FY25','Q3 FY25','Q4 FY25'],
+    domestic: [26.0, 32.3, 37.6, 39.3],
+    export:   [17.1, 21.4, 25.3, 27.5]
+  },
+  yearly: {
+    labels: ['FY22','FY23','FY24','FY25'],
+    domestic: [98.4, 115.7, 128.3, 135.2],
+    export:   [54.2,  68.9,  79.4,  91.3]
+  }
+};
+
+const SEGMENTS = {
+  labels: ['Beverages','Bakery','Nutraceuticals','Dairy','Confectionery'],
+  values: [28.4, 22.1, 18.7, 16.3, 14.5],
+  colors: ['#0f766e','#65a30d','#d97706','#3b82f6','#8b5cf6']
+};
+
+const PRODUCTS = {
+  labels: ['Gum Arabic','Fruit & Veg Powders','Non-Dairy Creamers','Caseinates','Seasonings','Natural Colors'],
+  values: [38.2, 29.7, 24.5, 18.9, 14.2, 10.8]
+};
+
+const SUPPLY = {
+  labels: ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+  production: [280,310,295,340,368,352,405,428,465,381,412,480],
+  inventory:  [145,162,138,175,188,171,195,208,222,198,207,225]
+};
+
+const ORDERS = [
+  { id:'DTP-2503', client:'Parle Agro Ltd.',      product:'Gum Arabic (SD)',       qty:'18 MT', value:'₹24.3L', status:'Delivered'  },
+  { id:'DTP-2502', client:'Nestlé India Ltd.',    product:'Non-Dairy Creamer',     qty:'12 MT', value:'₹18.6L', status:'In Transit' },
+  { id:'DTP-2501', client:'Amul (GCMMF)',         product:'Caseinates',            qty:'8 MT',  value:'₹12.9L', status:'Delivered'  },
+  { id:'DTP-2500', client:'Britannia Industries', product:'Fruit & Veg Powders',   qty:'22 MT', value:'₹31.4L', status:'Processing' },
+  { id:'DTP-2499', client:'Herbalife Intl.',      product:'Natural Colors',        qty:'5 MT',  value:'₹8.7L',  status:'Delivered'  },
+  { id:'DTP-2498', client:'ITC Ltd. (Foods)',     product:'Seasonings Blend',      qty:'14 MT', value:'₹19.8L', status:'Delivered'  },
+  { id:'DTP-2497', client:'Haldirams Snacks',     product:'Natural Colors',        qty:'3 MT',  value:'₹5.1L',  status:'In Transit' },
+  { id:'DTP-2496', client:'DS Group',             product:'Gum Arabic (SD)',       qty:'10 MT', value:'₹13.5L', status:'Delivered'  },
+];
+
+const METRICS = [
+  { label:'On-Time Delivery', value:97.8, unit:'%', color:'#0f766e' },
+  { label:'Factory Utilization', value:84.0, unit:'%', color:'#65a30d' },
+  { label:'Fulfillment Rate', value:99.2, unit:'%', color:'#3b82f6' },
+  { label:'Quality Pass Rate', value:99.1, unit:'%', color:'#d97706' }
+];
+
+const OPS = [
+  { label:'Production (Mar)', val:'480 MT', sub:'↑ 16.5% MoM', color:'#0f766e' },
+  { label:'Inventory Stock',  val:'225 MT', sub:'42 days cover', color:'#d97706' },
+  { label:'Active SKUs',      val:'68',     sub:'3 new launches', color:'#65a30d' },
+  { label:'Pending Orders',   val:'12',     sub:'₹18.4 Cr value', color:'#3b82f6' }
+];
+
+// ══════════════════════════════════════════
+// CHART DEFAULTS
+// ══════════════════════════════════════════
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size   = 11;
+Chart.defaults.color       = '#94a3b8';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
+Chart.defaults.plugins.legend.labels.padding = 16;
+
+const tooltipDefaults = {
+  backgroundColor: '#fff',
+  titleColor: '#1e293b',
+  bodyColor: '#64748b',
+  borderColor: '#e2e8f0',
+  borderWidth: 1,
+  padding: 10,
+  cornerRadius: 8,
+  boxPadding: 4,
+  titleFont: { weight: '600', size: 12 },
+  bodyFont: { size: 11 }
+};
+
+// ══════════════════════════════════════════
+// ANIMATED COUNTERS
+// ══════════════════════════════════════════
+function animateCounter(id, target, decimals=1, duration=1400) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = performance.now();
+  function update(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = (eased * target).toFixed(decimals);
+    if (t < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ══════════════════════════════════════════
+// REVENUE CHART
+// ══════════════════════════════════════════
+let revenueChart;
+function buildRevenueChart(period) {
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  const d = DATA[period];
+
+  const gradTeal = ctx.createLinearGradient(0,0,0,230);
+  gradTeal.addColorStop(0,'rgba(15,118,110,0.18)');
+  gradTeal.addColorStop(1,'rgba(15,118,110,0.00)');
+
+  const gradGreen = ctx.createLinearGradient(0,0,0,230);
+  gradGreen.addColorStop(0,'rgba(101,163,13,0.18)');
+  gradGreen.addColorStop(1,'rgba(101,163,13,0.00)');
+
+  const cfg = {
+    type: 'line',
+    data: {
+      labels: d.labels,
+      datasets: [
+        {
+          label: 'Domestic',
+          data: d.domestic,
+          borderColor: '#0f766e',
+          backgroundColor: gradTeal,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#0f766e',
+          pointBorderWidth: 0
+        },
+        {
+          label: 'Export',
+          data: d.export,
+          borderColor: '#65a30d',
+          backgroundColor: gradGreen,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#65a30d',
+          pointBorderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode:'index', intersect: false },
+      plugins: {
+        legend: { position:'bottom', labels:{ color:'#64748b' } },
+        tooltip: {
+          ...tooltipDefaults,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ₹${ctx.parsed.y.toFixed(1)} Cr`
+          }
+        }
+      },
+      scales: {
+        x: { grid:{ display:false }, border:{display:false}, ticks:{ color:'#94a3b8' } },
+        y: {
+          grid:{ color:'#f1f5f9', drawBorder:false },
+          border:{display:false},
+          ticks:{ color:'#94a3b8', callback: v => '₹'+v }
+        }
+      }
+    }
+  };
+
+  if (revenueChart) { revenueChart.destroy(); }
+  revenueChart = new Chart(ctx, cfg);
+}
+
+// ══════════════════════════════════════════
+// SEGMENT (DOUGHNUT) CHART
+// ══════════════════════════════════════════
+function buildSegmentChart() {
+  const ctx = document.getElementById('segmentChart').getContext('2d');
+  const total = SEGMENTS.values.reduce((a,b)=>a+b,0);
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: SEGMENTS.labels,
+      datasets:[{
+        data: SEGMENTS.values,
+        backgroundColor: SEGMENTS.colors,
+        hoverOffset: 6,
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      cutout:'60%',
+      plugins: {
+        legend:{ display:false },
+        tooltip:{
+          ...tooltipDefaults,
+          callbacks:{
+            label: ctx => {
+              const pct = ((ctx.parsed/total)*100).toFixed(1);
+              return ` ₹${ctx.parsed.toFixed(1)} Cr (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Custom legend
+  const leg = document.getElementById('segment-legend');
+  SEGMENTS.labels.forEach((label,i)=>{
+    const pct = ((SEGMENTS.values[i]/total)*100).toFixed(0);
+    leg.innerHTML += `
+      <div class="flex items-center justify-between text-xs">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 inline-block" style="background:${SEGMENTS.colors[i]}"></span>
+          <span class="text-slate-600">${label}</span>
+        </span>
+        <span class="font-semibold text-slate-700">₹${SEGMENTS.values[i]}Cr <span class="text-slate-400 font-normal">(${pct}%)</span></span>
+      </div>`;
+  });
+}
+
+// ══════════════════════════════════════════
+// PRODUCTS (HORIZONTAL BAR) CHART
+// ══════════════════════════════════════════
+function buildProductsChart() {
+  const ctx = document.getElementById('productsChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: PRODUCTS.labels,
+      datasets:[{
+        label:'Revenue (₹ Cr)',
+        data: PRODUCTS.values,
+        backgroundColor: [
+          'rgba(15,118,110,0.85)',
+          'rgba(15,118,110,0.70)',
+          'rgba(15,118,110,0.60)',
+          'rgba(101,163,13,0.75)',
+          'rgba(217,119,6,0.75)',
+          'rgba(59,130,246,0.75)'
+        ],
+        borderRadius:{ topRight:5, bottomRight:5 },
+        borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          ...tooltipDefaults,
+          callbacks:{ label: ctx => ` ₹${ctx.parsed.x.toFixed(1)} Cr` }
+        }
+      },
+      scales:{
+        x:{ grid:{color:'#f1f5f9'}, border:{display:false}, ticks:{color:'#94a3b8', callback:v=>'₹'+v} },
+        y:{ grid:{display:false}, border:{display:false}, ticks:{color:'#475569', font:{size:11}} }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+// SUPPLY CHAIN CHART
+// ══════════════════════════════════════════
+function buildSupplyChart() {
+  const ctx = document.getElementById('supplyChart').getContext('2d');
+  const gTeal = ctx.createLinearGradient(0,0,0,155);
+  gTeal.addColorStop(0,'rgba(15,118,110,0.15)');
+  gTeal.addColorStop(1,'rgba(15,118,110,0.00)');
+  const gAmber = ctx.createLinearGradient(0,0,0,155);
+  gAmber.addColorStop(0,'rgba(217,119,6,0.15)');
+  gAmber.addColorStop(1,'rgba(217,119,6,0.00)');
+
+  new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: SUPPLY.labels,
+      datasets:[
+        { label:'Production (MT)', data:SUPPLY.production, borderColor:'#0f766e', backgroundColor:gTeal, fill:true, tension:0.4, borderWidth:2, pointRadius:0, pointHoverRadius:4 },
+        { label:'Inventory (MT)',  data:SUPPLY.inventory,  borderColor:'#d97706', backgroundColor:gAmber, fill:true, tension:0.4, borderWidth:2, pointRadius:0, pointHoverRadius:4 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#64748b'}},
+        tooltip:{
+          ...tooltipDefaults,
+          callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} MT` }
+        }
+      },
+      scales:{
+        x:{grid:{display:false},border:{display:false},ticks:{color:'#94a3b8',font:{size:10}}},
+        y:{grid:{color:'#f1f5f9'},border:{display:false},ticks:{color:'#94a3b8',font:{size:10}}}
+      }
+    }
+  });
+
+  // Metric bars
+  const col1 = document.getElementById('metric-bars');
+  const col2 = document.getElementById('metric-bars-2');
+  METRICS.forEach((m,i)=>{
+    const bar = `
+      <div class="mb-3">
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-slate-600 font-medium">${m.label}</span>
+          <span class="font-bold text-slate-800">${m.value}${m.unit}</span>
+        </div>
+        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full" style="width:${m.value}%;background:${m.color};transition:width 1.2s cubic-bezier(.4,0,.2,1)"></div>
+        </div>
+      </div>`;
+    if (i < 2) col1.innerHTML += bar;
+    else col2.innerHTML += bar;
+  });
+}
+
+// ══════════════════════════════════════════
+// RADAR CHART (Ops Health)
+// ══════════════════════════════════════════
+function buildRadarChart() {
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  new Chart(ctx, {
+    type:'radar',
+    data:{
+      labels:['Quality','Delivery','Fulfillment','Utilization','Throughput','Client Sat.'],
+      datasets:[{
+        label:'Mar 2025',
+        data:[99.1,97.8,99.2,84,88,94],
+        borderColor:'#0f766e',
+        backgroundColor:'rgba(15,118,110,0.15)',
+        borderWidth:2,
+        pointBackgroundColor:'#0f766e',
+        pointRadius:3
+      },{
+        label:'FY Avg',
+        data:[98.5,96.8,97.9,80,85,91],
+        borderColor:'#d97706',
+        backgroundColor:'rgba(217,119,6,0.10)',
+        borderWidth:1.5,
+        pointBackgroundColor:'#d97706',
+        pointRadius:2,
+        borderDash:[4,3]
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#64748b',font:{size:10}}},
+        tooltip:{
+          ...tooltipDefaults,
+          callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.r}%` }
+        }
+      },
+      scales:{
+        r:{
+          min:70, max:100,
+          grid:{color:'#e2e8f0'},
+          angleLines:{color:'#e2e8f0'},
+          pointLabels:{color:'#64748b',font:{size:10}},
+          ticks:{display:false}
+        }
+      }
+    }
+  });
+
+  // Ops tiles
+  const grid = document.getElementById('ops-grid');
+  OPS.forEach(o=>{
+    grid.innerHTML+=`
+      <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
+        <div class="text-xs text-slate-500 leading-tight">${o.label}</div>
+        <div class="text-base font-extrabold mt-0.5 leading-tight" style="color:${o.color}">${o.val}</div>
+        <div class="text-xs text-slate-400 mt-0.5">${o.sub}</div>
+      </div>`;
+  });
+}
+
+// ══════════════════════════════════════════
+// ORDERS TABLE
+// ══════════════════════════════════════════
+function buildOrdersTable() {
+  const tbody = document.getElementById('orders-tbody');
+  const badgeClass = { 'Delivered':'badge-delivered','In Transit':'badge-transit','Processing':'badge-processing','Cancelled':'badge-cancelled' };
+  ORDERS.forEach(o=>{
+    tbody.innerHTML+=`
+      <tr class="trow transition-colors">
+        <td class="px-4 py-3 font-mono font-semibold" style="color:#0f766e">${o.id}</td>
+        <td class="px-4 py-3 font-medium text-slate-700 whitespace-nowrap">${o.client}</td>
+        <td class="px-4 py-3 text-slate-500 hidden md:table-cell whitespace-nowrap">${o.product}</td>
+        <td class="px-4 py-3 text-right font-semibold text-slate-800 whitespace-nowrap">${o.value}</td>
+        <td class="px-4 py-3 text-center">
+          <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeClass[o.status]||''}">${o.status}</span>
+        </td>
+      </tr>`;
+  });
+}
+
+// ══════════════════════════════════════════
+// PERIOD TOGGLE
+// ══════════════════════════════════════════
+document.querySelectorAll('.period-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    buildRevenueChart(btn.dataset.period);
+  });
+});
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', ()=>{
+  // KPI counters
+  const domestic = DATA.monthly.domestic.reduce((a,b)=>a+b,0);
+  const exports  = DATA.monthly.export.reduce((a,b)=>a+b,0);
+  const total    = domestic + exports;
+  const exportPct = (exports/total)*100;
+
+  animateCounter('kpi-revenue', total, 1, 1400);
+  animateCounter('kpi-export', exportPct, 1, 1400);
+  animateCounter('kpi-clients', 148, 0, 1200);
+  animateCounter('kpi-fulfillment', 98.4, 1, 1000);
+
+  // Charts
+  buildRevenueChart('monthly');
+  buildSegmentChart();
+  buildProductsChart();
+  buildSupplyChart();
+  buildRadarChart();
+  buildOrdersTable();
+});
+</script>
+</body>
+</html>
