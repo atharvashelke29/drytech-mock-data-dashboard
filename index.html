@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Drytech Processes — Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          drytech: {
+            forest:  '#14532d',
+            green:   '#166534',
+            sprout:  '#65a30d',
+            gold:    '#ca8a04',
+            amber:   '#d97706',
+            cream:   '#fefce8',
+            berry:   '#be123c',
+            orange:  '#c2410c',
+          }
+        },
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+      }
+    }
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { font-family: 'Inter', system-ui, sans-serif; margin: 0; }
+  body { background: #fafaf9; transition: background-color .3s ease, color .3s ease; }
+  .dark body, body.dark { background: #0a0f0a; color: #e5e7eb; }
+  .dark { color-scheme: dark; }
+
+  /* Sidebar */
+  .sidebar-link { transition: all .15s ease; }
+  .sidebar-link:hover { background: rgba(255,255,255,.06); }
+  .sidebar-link.active { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); box-shadow: 0 4px 12px rgba(22,163,74,.35); }
+
+  /* KPI Cards */
+  .kpi { transition: transform .25s ease, box-shadow .25s ease; }
+  .kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(20,83,45,.12); }
+
+  /* Counter animation */
+  @keyframes pop { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+  .pop-in { animation: pop .5s ease forwards; }
+
+  /* Pulse */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+  .pulse-dot { animation: pulse 2s infinite; }
+
+  /* Heatmap cells */
+  .hm-cell { transition: transform .15s ease; cursor: pointer; border-radius: 3px; }
+  .hm-cell:hover { transform: scale(1.35); z-index: 10; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+  /* Table row hover */
+  .trow { transition: background .15s ease; }
+  .trow:hover { background: rgba(22,163,74,.04); }
+  .dark .trow:hover { background: rgba(22,163,74,.10); }
+
+  /* Status badges */
+  .badge-shipped    { background:#dcfce7; color:#15803d; }
+  .badge-processing { background:#fef3c7; color:#a16207; }
+  .badge-pending    { background:#dbeafe; color:#1d4ed8; }
+  .badge-delayed    { background:#fee2e2; color:#b91c1c; }
+  .dark .badge-shipped    { background:rgba(22,163,74,.18);  color:#86efac; }
+  .dark .badge-processing { background:rgba(202,138,4,.18);  color:#fcd34d; }
+  .dark .badge-pending    { background:rgba(29,78,216,.18);  color:#93c5fd; }
+  .dark .badge-delayed    { background:rgba(185,28,28,.18);  color:#fca5a5; }
+
+  /* Progress bar fill animation */
+  @keyframes fill { from{width:0} to{width:var(--w)} }
+  .pb-fill { animation: fill 1.4s cubic-bezier(.4,0,.2,1) forwards; }
+
+  /* Card backgrounds (dark mode aware) */
+  .card { background: #ffffff; border: 1px solid #e7e5e4; box-shadow: 0 1px 3px rgba(20,83,45,.04); }
+  .dark .card { background: #111714; border-color: #1f2a23; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+
+  /* Sidebar bg */
+  .sidebar-bg { background: linear-gradient(180deg, #14532d 0%, #052e16 100%); }
+
+  /* Header bg */
+  .header-bg { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid #e7e5e4; }
+  .dark .header-bg { background: rgba(10,15,10,0.85); border-bottom-color: #1f2a23; }
+
+  /* Section title */
+  .section-title { font-size: .82rem; font-weight: 700; color: #475569; letter-spacing: .03em; }
+  .dark .section-title { color: #94a3b8; }
+
+  /* Tooltip */
+  .hm-tip { position: fixed; pointer-events: none; background: #14532d; color: white; font-size: 11px; padding: 6px 10px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 1000; opacity: 0; transition: opacity .15s ease; }
+  .hm-tip.show { opacity: 1; }
+
+  /* Dark mode text adjustments */
+  .dark .text-slate-800 { color: #e5e7eb !important; }
+  .dark .text-slate-700 { color: #d1d5db !important; }
+  .dark .text-slate-600 { color: #9ca3af !important; }
+  .dark .text-slate-500 { color: #6b7280 !important; }
+  .dark .bg-slate-50    { background: #1a201d !important; }
+  .dark .bg-slate-100   { background: #1a201d !important; }
+  .dark .border-slate-200 { border-color: #1f2a23 !important; }
+  .dark .border-slate-100 { border-color: #1a201d !important; }
+  .dark .divide-slate-100 > * + * { border-color: #1a201d !important; }
+</style>
+</head>
+<body>
+
+<div class="flex min-h-screen">
+
+  <!-- ═════════════════════════════════════
+       SIDEBAR
+  ═════════════════════════════════════ -->
+  <aside class="sidebar-bg w-60 flex-shrink-0 flex flex-col text-white sticky top-0 h-screen">
+
+    <!-- Logo -->
+    <div class="px-5 py-5 border-b border-green-900/40">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" class="w-6 h-6">
+            <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z"/>
+            <path d="M12 22V12"/><path d="M4 7l8 5 8-5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="font-extrabold text-base leading-tight tracking-tight">DRYTECH</div>
+          <div class="text-[10px] text-green-200/70 leading-tight tracking-widest uppercase">Processes India</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <div class="px-3 pb-2 text-[10px] font-bold text-green-300/60 uppercase tracking-widest">Main</div>
+
+      <a href="#" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
+        Dashboard
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18M7 14l3-3 3 3 5-5"/></svg>
+        Sales Analytics
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 7l10-5 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Production
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Quality Control
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Inventory
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 12H6L5 9z"/></svg>
+        Orders
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M16 3.13a4 4 0 010 7.75M22 21v-2a4 4 0 00-3-3.85"/></svg>
+        B2B Clients
+      </a>
+
+      <div class="px-3 pt-4 pb-2 text-[10px] font-bold text-green-300/60 uppercase tracking-widest">Reports</div>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        Reports
+      </a>
+      <a href="#" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-green-100/80">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <!-- Profile -->
+    <div class="px-3 py-3 border-t border-green-900/40">
+      <div class="flex items-center gap-3 px-2 py-2 rounded-lg bg-white/5">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-drytech-gold to-drytech-amber flex items-center justify-center font-bold text-sm">AS</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold truncate">Atharva Shelke</div>
+          <div class="text-[10px] text-green-200/70 truncate">Administrator</div>
+        </div>
+        <button class="text-green-200/60 hover:text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═════════════════════════════════════
+       MAIN CONTENT
+  ═════════════════════════════════════ -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="header-bg sticky top-0 z-40 px-6 py-3.5 flex items-center gap-4">
+      <div class="flex-1 max-w-md">
+        <div class="relative">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search products, clients, orders..." class="w-full bg-slate-100 dark:bg-[#1a201d] border-0 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-drytech-sprout/50"/>
+        </div>
+      </div>
+
+      <!-- Date range picker -->
+      <div class="hidden lg:flex items-center gap-2 bg-slate-100 dark:bg-[#1a201d] rounded-lg px-3 py-2">
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <input id="dateFrom" type="date" value="2024-04-01" class="bg-transparent text-xs text-slate-700 dark:text-slate-300 focus:outline-none"/>
+        <span class="text-slate-400">→</span>
+        <input id="dateTo" type="date" value="2025-03-31" class="bg-transparent text-xs text-slate-700 dark:text-slate-300 focus:outline-none"/>
+      </div>
+
+      <!-- Theme toggle -->
+      <button id="themeToggle" class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-[#1a201d] flex items-center justify-center hover:bg-slate-200 transition" title="Toggle theme">
+        <svg id="iconSun" class="w-4 h-4 text-drytech-amber" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <svg id="iconMoon" class="w-4 h-4 text-slate-600 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+
+      <!-- Notifications -->
+      <button class="relative w-9 h-9 rounded-lg bg-slate-100 dark:bg-[#1a201d] flex items-center justify-center hover:bg-slate-200 transition">
+        <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="absolute top-1 right-1 w-2 h-2 bg-drytech-berry rounded-full pulse-dot"></span>
+      </button>
+
+      <!-- Live indicator -->
+      <div class="hidden sm:flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full px-3 py-1">
+        <span class="w-1.5 h-1.5 bg-green-500 rounded-full pulse-dot"></span>
+        Live
+      </div>
+
+      <!-- Avatar -->
+      <div class="w-9 h-9 rounded-full bg-gradient-to-br from-drytech-sprout to-drytech-green flex items-center justify-center text-white font-bold text-xs cursor-pointer">AS</div>
+    </header>
+
+    <!-- ═══════════════════════════════════
+         DASHBOARD BODY
+    ═══════════════════════════════════ -->
+    <main id="dash-body" class="flex-1 p-6 space-y-6">
+
+      <!-- Page title bar -->
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-extrabold text-slate-800">Executive Dashboard</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Real-time overview · FY 2024–25 · <span id="ts">--</span></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="exportCSV" class="flex items-center gap-1.5 bg-white dark:bg-[#1a201d] border border-slate-200 dark:border-[#1f2a23] text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg px-3.5 py-2 hover:border-drytech-sprout hover:text-drytech-green transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export CSV
+          </button>
+          <button id="exportPDF" class="flex items-center gap-1.5 bg-drytech-green text-white text-xs font-semibold rounded-lg px-3.5 py-2 hover:bg-drytech-forest transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            Export PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- ── KPI CARDS ── -->
+      <section class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+
+        <div class="kpi card rounded-xl p-5 relative overflow-hidden">
+          <div class="absolute right-0 top-0 w-24 h-24 bg-drytech-green/5 rounded-full -mr-8 -mt-8"></div>
+          <div class="flex items-center justify-between mb-3 relative">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Monthly Production</span>
+            <div class="w-9 h-9 rounded-lg bg-drytech-green/10 flex items-center justify-center">
+              <svg class="w-4 h-4 text-drytech-green" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 7l10-5 10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+          </div>
+          <div class="flex items-end gap-1.5 mb-2 relative">
+            <span id="k1" class="text-3xl font-extrabold text-slate-800 leading-none">0</span>
+            <span class="text-sm text-slate-400 mb-1">MT</span>
+          </div>
+          <div class="flex items-center gap-2 relative">
+            <span class="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">▲ 16.5%</span>
+            <span class="text-[11px] text-slate-400">vs last month</span>
+          </div>
+        </div>
+
+        <div class="kpi card rounded-xl p-5 relative overflow-hidden">
+          <div class="absolute right-0 top-0 w-24 h-24 bg-drytech-gold/5 rounded-full -mr-8 -mt-8"></div>
+          <div class="flex items-center justify-between mb-3 relative">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Active B2B Clients</span>
+            <div class="w-9 h-9 rounded-lg bg-drytech-gold/10 flex items-center justify-center">
+              <svg class="w-4 h-4 text-drytech-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M16 3.13a4 4 0 010 7.75M22 21v-2a4 4 0 00-3-3.85"/></svg>
+            </div>
+          </div>
+          <div class="flex items-end gap-1.5 mb-2 relative">
+            <span id="k2" class="text-3xl font-extrabold text-slate-800 leading-none">0</span>
+          </div>
+          <div class="flex items-center gap-2 relative">
+            <span class="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">▲ 11.3%</span>
+            <span class="text-[11px] text-slate-400">vs FY24</span>
+          </div>
+        </div>
+
+        <div class="kpi card rounded-xl p-5 relative overflow-hidden">
+          <div class="absolute right-0 top-0 w-24 h-24 bg-drytech-berry/5 rounded-full -mr-8 -mt-8"></div>
+          <div class="flex items-center justify-between mb-3 relative">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Quality Yield Rate</span>
+            <div class="w-9 h-9 rounded-lg bg-drytech-berry/10 flex items-center justify-center">
+              <svg class="w-4 h-4 text-drytech-berry" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            </div>
+          </div>
+          <div class="flex items-end gap-1.5 mb-2 relative">
+            <span id="k3" class="text-3xl font-extrabold text-slate-800 leading-none">0</span>
+            <span class="text-sm text-slate-400 mb-1">%</span>
+          </div>
+          <div class="flex items-center gap-2 relative">
+            <span class="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">▲ 1.4%</span>
+            <span class="text-[11px] text-slate-400">vs target</span>
+          </div>
+        </div>
+
+        <div class="kpi card rounded-xl p-5 relative overflow-hidden">
+          <div class="absolute right-0 top-0 w-24 h-24 bg-drytech-orange/5 rounded-full -mr-8 -mt-8"></div>
+          <div class="flex items-center justify-between mb-3 relative">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Total Revenue YTD</span>
+            <div class="w-9 h-9 rounded-lg bg-drytech-orange/10 flex items-center justify-center">
+              <svg class="w-4 h-4 text-drytech-orange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+          </div>
+          <div class="flex items-end gap-1.5 mb-2 relative">
+            <span class="text-sm text-slate-400 mb-1">₹</span>
+            <span id="k4" class="text-3xl font-extrabold text-slate-800 leading-none">0</span>
+            <span class="text-sm text-slate-400 mb-1">Cr</span>
+          </div>
+          <div class="flex items-center gap-2 relative">
+            <span class="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">▲ 14.2%</span>
+            <span class="text-[11px] text-slate-400">vs FY24</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── ROW: Growth Chart + Pie Chart ── -->
+      <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+        <!-- Growth Chart -->
+        <div class="card rounded-xl p-5 xl:col-span-2">
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Quarterly Revenue Growth</h3>
+              <p class="text-[11px] text-slate-500 mt-0.5">Year-over-Year production volume & revenue trend</p>
+            </div>
+            <div class="flex items-center gap-3 text-[11px]">
+              <span class="flex items-center gap-1.5 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-drytech-green inline-block"></span>FY 2024-25</span>
+              <span class="flex items-center gap-1.5 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-drytech-gold inline-block"></span>FY 2023-24</span>
+            </div>
+          </div>
+          <div style="height:260px;position:relative"><canvas id="growthChart"></canvas></div>
+        </div>
+
+        <!-- Pie Chart -->
+        <div class="card rounded-xl p-5">
+          <div class="mb-4">
+            <h3 class="text-sm font-bold text-slate-800">Product Category Revenue</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">Sales distribution by category</p>
+          </div>
+          <div style="height:170px;position:relative"><canvas id="pieChart"></canvas></div>
+          <div id="pieLegend" class="mt-3 space-y-1.5"></div>
+        </div>
+      </section>
+
+      <!-- ── HEAT MAP ── -->
+      <section class="card rounded-xl p-5">
+        <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Daily Production Heatmap — Spray Drying Facilities</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">Production intensity (MT) across days · Apr 2024 → Mar 2025</p>
+          </div>
+          <div class="flex items-center gap-2 text-[10px] text-slate-500">
+            <span>Less</span>
+            <div class="flex gap-0.5">
+              <span class="w-3 h-3 rounded-sm" style="background:#dcfce7"></span>
+              <span class="w-3 h-3 rounded-sm" style="background:#86efac"></span>
+              <span class="w-3 h-3 rounded-sm" style="background:#22c55e"></span>
+              <span class="w-3 h-3 rounded-sm" style="background:#15803d"></span>
+              <span class="w-3 h-3 rounded-sm" style="background:#14532d"></span>
+            </div>
+            <span>More</span>
+          </div>
+        </div>
+        <div id="heatmap" class="overflow-x-auto"></div>
+      </section>
+
+      <!-- ── Scatter + Inventory ── -->
+      <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+        <!-- Scatter Plot - Quality Control -->
+        <div class="card rounded-xl p-5">
+          <div class="mb-4">
+            <h3 class="text-sm font-bold text-slate-800">Quality Control Metrics</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">Moisture content vs. solubility — recent batch testing (Instant Fat-Filled Powder)</p>
+          </div>
+          <div style="height:280px;position:relative"><canvas id="scatterChart"></canvas></div>
+        </div>
+
+        <!-- Inventory Tracker -->
+        <div class="card rounded-xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Raw Material Inventory</h3>
+              <p class="text-[11px] text-slate-500 mt-0.5">Current stock levels vs capacity</p>
+            </div>
+            <button class="text-[11px] font-semibold text-drytech-green hover:underline">Manage →</button>
+          </div>
+          <div id="inventoryList" class="space-y-3.5"></div>
+        </div>
+
+      </section>
+
+      <!-- ── Recent Shipments Table ── -->
+      <section class="card rounded-xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Recent B2B Shipments</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5">Latest orders from enterprise clients</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select class="text-[11px] bg-slate-100 dark:bg-[#1a201d] border-0 rounded-lg px-3 py-1.5 font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-drytech-sprout/40">
+              <option>All Status</option>
+              <option>Shipped</option>
+              <option>Processing</option>
+              <option>Pending</option>
+            </select>
+            <button class="text-[11px] font-semibold text-drytech-green hover:underline">View all →</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-100">
+                <th class="text-left px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Order ID</th>
+                <th class="text-left px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Client</th>
+                <th class="text-left px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Product</th>
+                <th class="text-right px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Quantity</th>
+                <th class="text-right px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Value</th>
+                <th class="text-center px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th class="text-left px-5 py-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="pt-2 pb-1 text-center">
+        <div class="flex items-center justify-center gap-2 mb-1">
+          <div class="w-1 h-1 rounded-full bg-drytech-sprout"></div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">
+            Drytech Processes (India) Pvt. Ltd. · Executive Dashboard · FY 2024–25
+          </p>
+          <div class="w-1 h-1 rounded-full bg-drytech-sprout"></div>
+        </div>
+        <p class="text-[10px] text-slate-400 dark:text-slate-500">
+          Designed & Developed by <span class="font-bold text-drytech-green dark:text-drytech-sprout">Atharva Shelke</span> · Built with Tailwind CSS + Chart.js
+        </p>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<!-- Heatmap tooltip -->
+<div id="hmTip" class="hm-tip"></div>
+
+<script>
+// ═════════════════════════════════════════
+// MOCK DATA — Drytech Processes
+// ═════════════════════════════════════════
+const PRODUCTS_PIE = {
+  labels: ['Spray Dried Gum Arabic', 'Fruit & Veg Powders', 'Non-Dairy Creamers', 'Caseinates', 'Seasonings & Blends', 'Natural Colors'],
+  values: [38.2, 29.7, 24.5, 18.9, 14.2, 10.8],
+  colors: ['#14532d', '#65a30d', '#ca8a04', '#d97706', '#c2410c', '#be123c']
+};
+
+const GROWTH_DATA = {
+  labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+  fy25:   [43.1, 53.7, 61.5, 67.5],
+  fy24:   [37.8, 46.2, 54.1, 59.8]
+};
+
+// Quality Control Scatter — Moisture % vs Solubility %
+const SCATTER_DATA = [
+  { batch: 'B-2401', x: 2.1, y: 98.4 }, { batch: 'B-2402', x: 2.4, y: 97.9 },
+  { batch: 'B-2403', x: 1.8, y: 99.1 }, { batch: 'B-2404', x: 3.1, y: 96.2 },
+  { batch: 'B-2405', x: 2.6, y: 97.5 }, { batch: 'B-2406', x: 2.0, y: 98.7 },
+  { batch: 'B-2407', x: 2.9, y: 96.8 }, { batch: 'B-2408', x: 2.3, y: 98.1 },
+  { batch: 'B-2409', x: 1.9, y: 98.9 }, { batch: 'B-2410', x: 2.7, y: 97.3 },
+  { batch: 'B-2411', x: 3.3, y: 95.4 }, { batch: 'B-2412', x: 2.2, y: 98.5 },
+  { batch: 'B-2413', x: 2.5, y: 97.8 }, { batch: 'B-2414', x: 1.7, y: 99.2 },
+  { batch: 'B-2415', x: 3.0, y: 96.5 }, { batch: 'B-2416', x: 2.4, y: 98.0 },
+  { batch: 'B-2417', x: 2.8, y: 97.1 }, { batch: 'B-2418', x: 2.1, y: 98.6 },
+  { batch: 'B-2419', x: 3.5, y: 94.9 }, { batch: 'B-2420', x: 2.0, y: 98.8 },
+  { batch: 'B-2421', x: 2.6, y: 97.6 }, { batch: 'B-2422', x: 1.9, y: 99.0 },
+];
+
+const INVENTORY = [
+  { name: 'Raw Acacia Gum',           current: 285, capacity: 350, unit: 'MT', color: '#14532d', source: 'Sudan / Chad'   },
+  { name: 'Fresh Mangoes',            current: 142, capacity: 200, unit: 'MT', color: '#d97706', source: 'Maharashtra'    },
+  { name: 'Fresh Tomatoes',           current: 98,  capacity: 180, unit: 'MT', color: '#c2410c', source: 'Karnataka'      },
+  { name: 'Casein (Bovine)',          current: 215, capacity: 250, unit: 'MT', color: '#ca8a04', source: 'NZ / EU import' },
+  { name: 'Refined Vegetable Fat',    current: 178, capacity: 220, unit: 'MT', color: '#65a30d', source: 'Domestic'       },
+  { name: 'Natural Beetroot Extract', current: 42,  capacity: 80,  unit: 'MT', color: '#be123c', source: 'Punjab'         },
+];
+
+const ORDERS = [
+  { id: 'DTP-3421', client: 'Parle Agro Ltd.',       product: 'Spray Dried Gum Arabic', qty: '24 MT',  value: '₹29.3 L', status: 'Shipped',    date: '08 Apr 2026' },
+  { id: 'DTP-3420', client: 'Nestlé India Ltd.',     product: 'Non-Dairy Creamer Pro',  qty: '18 MT',  value: '₹22.4 L', status: 'Processing', date: '07 Apr 2026' },
+  { id: 'DTP-3419', client: 'Amul (GCMMF)',          product: 'Sodium Caseinate',       qty: '12 MT',  value: '₹17.8 L', status: 'Shipped',    date: '06 Apr 2026' },
+  { id: 'DTP-3418', client: 'Britannia Industries',  product: 'Mango Powder (SD)',      qty: '32 MT',  value: '₹38.6 L', status: 'Pending',    date: '05 Apr 2026' },
+  { id: 'DTP-3417', client: 'Herbalife Nutrition',   product: 'Beetroot Color Conc.',   qty: '8 MT',   value: '₹14.2 L', status: 'Shipped',    date: '04 Apr 2026' },
+  { id: 'DTP-3416', client: 'ITC Foods Division',    product: 'Garam Masala Blend',     qty: '21 MT',  value: '₹26.7 L', status: 'Shipped',    date: '03 Apr 2026' },
+  { id: 'DTP-3415', client: 'Haldiram Snacks',       product: 'Tomato Powder (SD)',     qty: '14 MT',  value: '₹17.5 L', status: 'Processing', date: '02 Apr 2026' },
+  { id: 'DTP-3414', client: 'DS Group',              product: 'Beverage Whitener',      qty: '19 MT',  value: '₹23.9 L', status: 'Delayed',    date: '01 Apr 2026' },
+  { id: 'DTP-3413', client: 'Patanjali Foods',       product: 'Gum Arabic (Premium)',   qty: '28 MT',  value: '₹34.8 L', status: 'Shipped',    date: '31 Mar 2026' },
+  { id: 'DTP-3412', client: 'GSK Consumer Health',   product: 'Calcium Caseinate',      qty: '10 MT',  value: '₹16.4 L', status: 'Shipped',    date: '30 Mar 2026' },
+];
+
+// ═════════════════════════════════════════
+// CHART DEFAULTS
+// ═════════════════════════════════════════
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size   = 11;
+Chart.defaults.color       = '#94a3b8';
+
+const tooltipStyle = {
+  backgroundColor: '#14532d',
+  titleColor: '#fff',
+  bodyColor: '#dcfce7',
+  borderColor: '#15803d',
+  borderWidth: 1,
+  padding: 10,
+  cornerRadius: 8,
+  boxPadding: 4,
+  titleFont: { weight: '700', size: 12 },
+  bodyFont: { size: 11 }
+};
+
+// ═════════════════════════════════════════
+// ANIMATED COUNTERS
+// ═════════════════════════════════════════
+function animateCounter(id, target, decimals = 0, duration = 1400) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = (eased * target).toFixed(decimals);
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ═════════════════════════════════════════
+// GROWTH CHART (Line + Area)
+// ═════════════════════════════════════════
+function buildGrowthChart() {
+  const ctx = document.getElementById('growthChart').getContext('2d');
+  const g1 = ctx.createLinearGradient(0,0,0,260);
+  g1.addColorStop(0,'rgba(22,163,74,0.30)');
+  g1.addColorStop(1,'rgba(22,163,74,0)');
+  const g2 = ctx.createLinearGradient(0,0,0,260);
+  g2.addColorStop(0,'rgba(202,138,4,0.18)');
+  g2.addColorStop(1,'rgba(202,138,4,0)');
+
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: GROWTH_DATA.labels,
+      datasets: [
+        {
+          label: 'FY 2024-25',
+          data: GROWTH_DATA.fy25,
+          borderColor: '#16a34a',
+          backgroundColor: g1,
+          borderWidth: 3,
+          tension: 0.4,
+          fill: true,
+          pointRadius: 5,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#16a34a',
+          pointBorderWidth: 2.5,
+          pointHoverRadius: 7
+        },
+        {
+          label: 'FY 2023-24',
+          data: GROWTH_DATA.fy24,
+          borderColor: '#ca8a04',
+          backgroundColor: g2,
+          borderWidth: 2,
+          borderDash: [6, 4],
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#ca8a04',
+          pointBorderWidth: 2,
+          pointHoverRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipStyle,
+          callbacks: { label: c => ` ${c.dataset.label}: ₹${c.parsed.y.toFixed(1)} Cr` }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#64748b' } },
+        y: {
+          grid: { color: '#f1f5f9', drawBorder: false },
+          border: { display: false },
+          ticks: { font: { size: 10 }, color: '#94a3b8', callback: v => '₹' + v + 'Cr' }
+        }
+      }
+    }
+  });
+}
+
+// ═════════════════════════════════════════
+// PIE CHART (Doughnut)
+// ═════════════════════════════════════════
+function buildPieChart() {
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  const total = PRODUCTS_PIE.values.reduce((a,b) => a+b, 0);
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: PRODUCTS_PIE.labels,
+      datasets: [{
+        data: PRODUCTS_PIE.values,
+        backgroundColor: PRODUCTS_PIE.colors,
+        borderColor: '#fff',
+        borderWidth: 3,
+        hoverOffset: 10
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipStyle,
+          callbacks: {
+            label: c => ` ₹${c.parsed.toFixed(1)}Cr (${((c.parsed/total)*100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+
+  // Custom legend
+  const leg = document.getElementById('pieLegend');
+  PRODUCTS_PIE.labels.forEach((label, i) => {
+    const pct = ((PRODUCTS_PIE.values[i]/total)*100).toFixed(0);
+    leg.innerHTML += `
+      <div class="flex items-center justify-between text-[11px]">
+        <span class="flex items-center gap-2 min-w-0">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0" style="background:${PRODUCTS_PIE.colors[i]}"></span>
+          <span class="text-slate-600 truncate">${label}</span>
+        </span>
+        <span class="font-bold text-slate-800 ml-2">${pct}%</span>
+      </div>`;
+  });
+}
+
+// ═════════════════════════════════════════
+// SCATTER PLOT — Quality Control
+// ═════════════════════════════════════════
+function buildScatterChart() {
+  const ctx = document.getElementById('scatterChart').getContext('2d');
+  // color points by quality: high solubility = green, medium = amber, low = red
+  const pointColors = SCATTER_DATA.map(p => {
+    if (p.y >= 98) return '#16a34a';
+    if (p.y >= 96.5) return '#ca8a04';
+    return '#be123c';
+  });
+
+  new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Batch Tests',
+        data: SCATTER_DATA.map(p => ({ x: p.x, y: p.y, batch: p.batch })),
+        backgroundColor: pointColors.map(c => c + 'cc'),
+        borderColor: pointColors,
+        borderWidth: 2,
+        pointRadius: 7,
+        pointHoverRadius: 10
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipStyle,
+          callbacks: {
+            title: () => '',
+            label: c => [
+              ` Batch: ${c.raw.batch}`,
+              ` Moisture: ${c.parsed.x}%`,
+              ` Solubility: ${c.parsed.y}%`
+            ]
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Moisture Content (%)', color: '#64748b', font: { size: 11, weight: '600' } },
+          grid: { color: '#f1f5f9' }, border: { display: false },
+          ticks: { color: '#94a3b8' },
+          min: 1.5, max: 4
+        },
+        y: {
+          title: { display: true, text: 'Solubility Index (%)', color: '#64748b', font: { size: 11, weight: '600' } },
+          grid: { color: '#f1f5f9' }, border: { display: false },
+          ticks: { color: '#94a3b8' },
+          min: 94, max: 100
+        }
+      }
+    }
+  });
+}
+
+// ═════════════════════════════════════════
+// HEATMAP — Daily Production
+// ═════════════════════════════════════════
+function buildHeatmap() {
+  const months = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+  const days   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const cellSz = 14, gap = 3;
+
+  // Generate ~7 weeks per month with realistic values
+  let html = '<div style="display:flex;align-items:flex-start;min-width:980px">';
+  html += '<div style="display:flex;flex-direction:column;gap:'+gap+'px;padding-right:8px;padding-top:18px">';
+  days.forEach(d => { html += `<div style="font-size:9px;height:${cellSz}px;line-height:${cellSz}px;color:#94a3b8">${d}</div>`; });
+  html += '</div>';
+  html += '<div style="flex:1;display:flex;gap:8px">';
+
+  let seed = 42;
+  function rng() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+
+  months.forEach((m, mi) => {
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center">';
+    html += `<div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:5px">${m}</div>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(5,${cellSz}px);grid-auto-rows:${cellSz}px;gap:${gap}px">`;
+    for (let i = 0; i < 35; i++) {
+      const seasonalBoost = (mi >= 6 && mi <= 9) ? 0.3 : 0; // peak season
+      const v = Math.min(1, rng() * 0.85 + seasonalBoost);
+      const colors = ['#f0fdf4','#dcfce7','#86efac','#22c55e','#15803d','#14532d'];
+      const c = colors[Math.floor(v * 5.5)];
+      const tonnes = (v * 22 + 4).toFixed(1);
+      html += `<div class="hm-cell" data-tip="${m} · Day ${i+1} · ${tonnes} MT" style="width:${cellSz}px;height:${cellSz}px;background:${c}"></div>`;
+    }
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  document.getElementById('heatmap').innerHTML = html;
+
+  // tooltip handler
+  const tip = document.getElementById('hmTip');
+  document.querySelectorAll('.hm-cell').forEach(cell => {
+    cell.addEventListener('mouseenter', e => {
+      tip.textContent = e.target.dataset.tip;
+      tip.classList.add('show');
+    });
+    cell.addEventListener('mousemove', e => {
+      tip.style.left = (e.clientX + 12) + 'px';
+      tip.style.top  = (e.clientY + 12) + 'px';
+    });
+    cell.addEventListener('mouseleave', () => tip.classList.remove('show'));
+  });
+}
+
+// ═════════════════════════════════════════
+// INVENTORY BARS
+// ═════════════════════════════════════════
+function buildInventory() {
+  const list = document.getElementById('inventoryList');
+  INVENTORY.forEach(item => {
+    const pct = (item.current / item.capacity) * 100;
+    const status = pct < 35 ? '🔴 Low' : pct < 65 ? '🟡 Medium' : '🟢 Healthy';
+    list.innerHTML += `
+      <div>
+        <div class="flex items-center justify-between text-[11px] mb-1.5">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-800">${item.name}</span>
+            <span class="text-slate-400 text-[10px]">· ${item.source}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-700">${item.current}/${item.capacity} ${item.unit}</span>
+            <span class="text-[10px]">${status}</span>
+          </div>
+        </div>
+        <div class="h-2 bg-slate-100 dark:bg-[#1a201d] rounded-full overflow-hidden">
+          <div class="h-full rounded-full pb-fill" style="--w:${pct}%;background:linear-gradient(90deg,${item.color},${item.color}dd)"></div>
+        </div>
+      </div>`;
+  });
+}
+
+// ═════════════════════════════════════════
+// ORDERS TABLE
+// ═════════════════════════════════════════
+function buildOrders() {
+  const tbody = document.getElementById('ordersTable');
+  const cls = { 'Shipped':'badge-shipped','Processing':'badge-processing','Pending':'badge-pending','Delayed':'badge-delayed' };
+  ORDERS.forEach(o => {
+    tbody.innerHTML += `
+      <tr class="trow">
+        <td class="px-5 py-3 font-mono font-bold text-drytech-green">${o.id}</td>
+        <td class="px-5 py-3 font-semibold text-slate-700 whitespace-nowrap">${o.client}</td>
+        <td class="px-5 py-3 text-slate-600 whitespace-nowrap">${o.product}</td>
+        <td class="px-5 py-3 text-right font-semibold text-slate-700 whitespace-nowrap">${o.qty}</td>
+        <td class="px-5 py-3 text-right font-bold text-slate-800 whitespace-nowrap">${o.value}</td>
+        <td class="px-5 py-3 text-center"><span class="text-[10px] font-bold px-2.5 py-1 rounded-full ${cls[o.status]||''}">${o.status}</span></td>
+        <td class="px-5 py-3 text-slate-500 whitespace-nowrap">${o.date}</td>
+      </tr>`;
+  });
+}
+
+// ═════════════════════════════════════════
+// EXPORT FUNCTIONS
+// ═════════════════════════════════════════
+document.getElementById('exportCSV').addEventListener('click', () => {
+  let csv = 'Order ID,Client,Product,Quantity,Value,Status,Date\n';
+  ORDERS.forEach(o => {
+    csv += `${o.id},"${o.client}","${o.product}",${o.qty},${o.value},${o.status},${o.date}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `drytech_orders_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('exportPDF').addEventListener('click', () => {
+  const btn = document.getElementById('exportPDF');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Generating...';
+  const el = document.getElementById('dash-body');
+  html2pdf().set({
+    margin: 8,
+    filename: `drytech_dashboard_${new Date().toISOString().split('T')[0]}.pdf`,
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: document.documentElement.classList.contains('dark') ? '#0a0f0a' : '#fafaf9' },
+    jsPDF: { unit: 'mm', format: 'a3', orientation: 'portrait' }
+  }).from(el).save().then(() => { btn.innerHTML = orig; });
+});
+
+// ═════════════════════════════════════════
+// THEME TOGGLE
+// ═════════════════════════════════════════
+const themeToggle = document.getElementById('themeToggle');
+const iconSun = document.getElementById('iconSun');
+const iconMoon = document.getElementById('iconMoon');
+
+function setTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  document.body.classList.toggle('dark', dark);
+  iconSun.classList.toggle('hidden', !dark);
+  iconMoon.classList.toggle('hidden', dark);
+  localStorage.setItem('drytech-theme', dark ? 'dark' : 'light');
+}
+themeToggle.addEventListener('click', () => {
+  setTheme(!document.documentElement.classList.contains('dark'));
+});
+setTheme(localStorage.getItem('drytech-theme') === 'dark');
+
+// ═════════════════════════════════════════
+// REAL-TIME UPDATES (every 5 seconds)
+// ═════════════════════════════════════════
+function updateTimestamp() {
+  const now = new Date();
+  document.getElementById('ts').textContent = now.toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}
+
+let liveValues = { k1: 480, k2: 148, k3: 99.1, k4: 230.5 };
+function liveUpdate() {
+  // Tiny realistic fluctuations
+  const fluctuate = (v, range) => v + (Math.random() - 0.5) * range;
+  liveValues.k1 = Math.max(450, Math.min(510, fluctuate(liveValues.k1, 4)));
+  liveValues.k3 = Math.max(98, Math.min(99.9, fluctuate(liveValues.k3, 0.2)));
+  liveValues.k4 = Math.max(228, Math.min(234, fluctuate(liveValues.k4, 0.3)));
+  document.getElementById('k1').textContent = Math.round(liveValues.k1);
+  document.getElementById('k3').textContent = liveValues.k3.toFixed(1);
+  document.getElementById('k4').textContent = liveValues.k4.toFixed(1);
+}
+
+// ═════════════════════════════════════════
+// INIT
+// ═════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  animateCounter('k1', 480, 0);
+  animateCounter('k2', 148, 0);
+  animateCounter('k3', 99.1, 1);
+  animateCounter('k4', 230.5, 1);
+
+  buildGrowthChart();
+  buildPieChart();
+  buildScatterChart();
+  buildHeatmap();
+  buildInventory();
+  buildOrders();
+
+  updateTimestamp();
+  setInterval(updateTimestamp, 1000);
+  setInterval(liveUpdate, 5000);
+});
+</script>
+
+</body>
+</html>
